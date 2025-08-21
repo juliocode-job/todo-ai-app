@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { enhanceTaskWithAI } from '@/lib/ai-service';
 
 // GET all todos for a user
 export async function GET(request: NextRequest) {
@@ -60,20 +61,15 @@ export async function POST(request: NextRequest) {
 
     console.log(`📝 Creating todo: "${title}" for user: ${user_identifier}`);
     
-    // Simple AI enhancement (mock for now)
-    const enhancedDescription = `Task: ${title}. ${description || ''} Remember to break this down into manageable steps and set a realistic timeline.`;
-    const steps = [
-      { step: 1, description: `Start planning ${title}` },
-      { step: 2, description: `Execute the main task` },
-      { step: 3, description: `Review and confirm completion` }
-    ];
+    // ✅ USE REAL AI ENHANCEMENT HERE
+    const enhancement = await enhanceTaskWithAI(title, description);
     
     const todoData = {
       user_identifier,
       title,
       description,
-      ai_enhanced_description: enhancedDescription,
-      steps: steps,
+      ai_enhanced_description: enhancement.enhancedDescription,
+      steps: enhancement.steps,
       is_completed: false
     };
 
@@ -88,7 +84,7 @@ export async function POST(request: NextRequest) {
       throw error;
     }
 
-    console.log('✅ Todo created successfully');
+    console.log('✅ Todo created successfully with AI enhancement');
     return NextResponse.json(data);
     
   } catch (error) {
