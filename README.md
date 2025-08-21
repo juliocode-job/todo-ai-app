@@ -1,3 +1,39 @@
+# AI-Enhanced Todo Application
+
+A full-stack, multi-channel todo management system with AI-powered task enhancement and real-time synchronization.
+
+## 🚀 Tech Stack
+
+### Frontend
+- **Next.js 14** - React framework with App Router
+- **TypeScript** - Type-safe development
+- **Tailwind CSS** - Utility-first styling
+- **Lucide Icons** - Modern icon system
+- **React Hot Toast** - Notification system
+
+### Backend
+- **Next.js API Routes** - RESTful API endpoints
+- **Supabase** - PostgreSQL database with real-time subscriptions
+- **OpenAI GPT-3.5** - AI task enhancement and smart suggestions
+- **Edge Functions** - Serverless compute on Vercel
+
+### Integrations
+- **n8n** - Workflow automation and API orchestration
+- **Evolution API** - WhatsApp Business API integration
+- **Typebot** - Conversational chatbot interface
+- **Vercel** - Deployment and hosting with automatic CI/CD
+
+## ✨ Features
+
+- 🤖 **AI Enhancement** - Automatic task enrichment with actionable steps
+- 💬 **Multi-Channel Access** - Web, WhatsApp, and chatbot interfaces
+- 🔄 **Real-Time Sync** - Instant updates across all platforms
+- 👥 **Multi-User Support** - Session-based user management
+- 📱 **WhatsApp Bot** - Complete todo management via WhatsApp
+- 🔐 **Persistent Storage** - PostgreSQL with RLS policies
+- 📊 **RESTful API** - Full CRUD operations
+- 🎨 **Responsive Design** - Mobile-first approach
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
