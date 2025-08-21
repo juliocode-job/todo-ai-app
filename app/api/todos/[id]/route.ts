@@ -4,9 +4,10 @@ import { supabase } from '@/lib/supabase';
 // UPDATE todo
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  console.log(`📥 PATCH /api/todos/${params.id}`);
+  const { id } = await params;
+  console.log(`📥 PATCH /api/todos/${id}`);
   
   try {
     const body = await request.json();
@@ -15,7 +16,7 @@ export async function PATCH(
     const { data, error } = await supabase
       .from('todos')
       .update(body)
-      .eq('id', params.id)
+      .eq('id', id)
       .select()
       .single();
 
@@ -39,15 +40,16 @@ export async function PATCH(
 // DELETE todo
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  console.log(`📥 DELETE /api/todos/${params.id}`);
+  const { id } = await params;
+  console.log(`📥 DELETE /api/todos/${id}`);
   
   try {
     const { error } = await supabase
       .from('todos')
       .delete()
-      .eq('id', params.id);
+      .eq('id', id);
 
     if (error) {
       console.error('❌ Supabase delete error:', error);
