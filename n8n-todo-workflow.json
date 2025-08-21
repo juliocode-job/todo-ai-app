@@ -1,0 +1,221 @@
+{
+  "name": "Todo API Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "todo-api",
+        "responseMode": "responseNode",
+        "options": {
+          "cors": {
+            "allowedOrigins": "*"
+          }
+        }
+      },
+      "id": "webhook_1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "todo-api"
+    },
+    {
+      "parameters": {
+        "mode": "expression",
+        "value1": "={{ $json.action }}",
+        "rules": {
+          "rules": [
+            {
+              "value2": "list",
+              "output": 0
+            },
+            {
+              "value2": "create",
+              "output": 1
+            },
+            {
+              "value2": "complete",
+              "output": 2
+            },
+            {
+              "value2": "delete",
+              "output": 3
+            },
+            {
+              "value2": "help",
+              "output": 4
+            }
+          ]
+        }
+      },
+      "id": "switch_1",
+      "name": "Route by Action",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://todo-ai-app-csv9-julio-s-projects-c52ab202.vercel.app/api/todos",
+        "method": "GET",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "user_identifier",
+              "value": "={{ $json.user_identifier }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "http_list",
+      "name": "List Todos",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [650, 100]
+    },
+    {
+      "parameters": {
+        "url": "https://todo-ai-app-csv9-julio-s-projects-c52ab202.vercel.app/api/todos",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"user_identifier\": \"{{ $json.user_identifier }}\",\n  \"title\": \"{{ $json.title }}\",\n  \"description\": \"{{ $json.description || '' }}\"\n}",
+        "options": {}
+      },
+      "id": "http_create",
+      "name": "Create Todo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [650, 250]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://todo-ai-app-csv9-julio-s-projects-c52ab202.vercel.app/api/todos?user_identifier={{ $json.user_identifier }}",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": []
+        },
+        "options": {}
+      },
+      "id": "http_list_complete",
+      "name": "List for Complete",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const todos = $input.first().json;\nconst todoNumber = $json.todo_number;\n\nif (!todos || todos.length === 0) {\n  return [{json: {error: 'No todos found'}}];\n}\n\nif (!todoNumber || todoNumber < 1 || todoNumber > todos.length) {\n  return [{json: {error: 'Invalid todo number'}}];\n}\n\nconst todoToComplete = todos[todoNumber - 1];\n\nreturn [{json: {\n  todo_id: todoToComplete.id,\n  title: todoToComplete.title\n}}];"
+      },
+      "id": "code_complete",
+      "name": "Get Todo ID",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "url": "=https://todo-ai-app-csv9-julio-s-projects-c52ab202.vercel.app/api/todos/{{ $json.todo_id }}",
+        "method": "PATCH",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"is_completed\": true\n}",
+        "options": {}
+      },
+      "id": "http_complete",
+      "name": "Complete Todo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "url": "=https://todo-ai-app-csv9-julio-s-projects-c52ab202.vercel.app/api/todos/{{ $json.todo_id }}",
+        "method": "DELETE",
+        "options": {}
+      },
+      "id": "http_delete",
+      "name": "Delete Todo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [650, 550]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "response",
+              "value": "📝 *Available Commands*\n\n• *list* - View all todos\n• *create* - Add new todo\n• *complete [number]* - Mark todo as done\n• *delete [number]* - Remove todo\n• *help* - Show this message\n\nExample:\n{\"action\": \"create\", \"user_identifier\": \"john@email.com\", \"title\": \"Buy groceries\"}"
+            }
+          ]
+        }
+      },
+      "id": "set_help",
+      "name": "Help Message",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [650, 700]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "responseHeaders": {
+          "entries": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "id": "respond",
+      "name": "Send Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Route by Action"}]]
+    },
+    "Route by Action": {
+      "main": [
+        [{"node": "List Todos"}],
+        [{"node": "Create Todo"}],
+        [{"node": "List for Complete"}],
+        [{"node": "Delete Todo"}],
+        [{"node": "Help Message"}]
+      ]
+    },
+    "List Todos": {
+      "main": [[{"node": "Send Response"}]]
+    },
+    "Create Todo": {
+      "main": [[{"node": "Send Response"}]]
+    },
+    "List for Complete": {
+      "main": [[{"node": "Get Todo ID"}]]
+    },
+    "Get Todo ID": {
+      "main": [[{"node": "Complete Todo"}]]
+    },
+    "Complete Todo": {
+      "main": [[{"node": "Send Response"}]]
+    },
+    "Delete Todo": {
+      "main": [[{"node": "Send Response"}]]
+    },
+    "Help Message": {
+      "main": [[{"node": "Send Response"}]]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "id": "todo-api-workflow"
+}
