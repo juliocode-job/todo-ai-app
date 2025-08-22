@@ -78,27 +78,34 @@ export default function SimpleChatInterface() {
       
       let botResponse = '';
       
-      try {
-        const data = await response.json();
-        console.log('📥 Response data:', data);
-        
-        // Try different possible response structures
-        botResponse = data.message || 
-                     data.text || 
-                     data.response || 
-                     data.body ||
-                     'Command processed successfully!';
+      // Read the response body only once
+      const responseText = await response.text();
+      console.log('📥 Raw response:', responseText);
+      
+      if (responseText) {
+        try {
+          // Try to parse as JSON first
+          const data = JSON.parse(responseText);
+          console.log('📥 Parsed JSON data:', data);
+          
+          // Try different possible response structures
+          botResponse = data.message || 
+                       data.text || 
+                       data.response || 
+                       data.body ||
+                       responseText;
+                       
+          // If it's still an object, stringify it
+          if (typeof botResponse === 'object') {
+            botResponse = JSON.stringify(botResponse);
+          }
                      
-        // If it's still an object, stringify it
-        if (typeof botResponse === 'object') {
-          botResponse = JSON.stringify(botResponse);
+        } catch (parseError) {
+          console.log('📝 Using raw text response (not JSON)');
+          botResponse = responseText;
         }
-                     
-      } catch (parseError) {
-        console.error('❌ JSON parse error:', parseError);
-        const textResponse = await response.text();
-        console.log('📥 Raw response:', textResponse);
-        botResponse = textResponse || 'Command processed successfully!';
+      } else {
+        botResponse = 'Command processed successfully!';
       }
 
       // Add bot response
@@ -319,7 +326,7 @@ export default function SimpleChatInterface() {
         </div>
         
         <div className="mt-2 text-xs text-red-600">
-          ⚠️ If you get CORS errors, click in CORS Help button for solutions
+          ⚠️ If you get CORS errors, click CORS Help button for solutions
         </div>
       </div>
     </div>
