@@ -21,7 +21,7 @@ export default function SimpleChatInterface() {
   ]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [webhookUrl, setWebhookUrl] = useState('https://your-n8n-instance.com/webhook/your-webhook-id');
+  const [webhookUrl, setWebhookUrl] = useState('https://n8n.harmonyservices.com.br/webhook/whatsapp-bot');
 
   const sendMessage = async () => {
     if (!inputMessage.trim()) return;
@@ -35,29 +35,56 @@ export default function SimpleChatInterface() {
     };
     
     setMessages(prev => [...prev, userMessage]);
+    const currentMessage = inputMessage;
     setInputMessage('');
     setIsLoading(true);
 
     try {
-      // Send to n8n webhook
+      console.log('🔗 Sending to webhook:', webhookUrl);
+      console.log('📤 Payload:', { body: currentMessage, from: 'web-test@example.com', fromMe: false });
+
+      // Send to n8n webhook with proper payload structure
       const response = await fetch(webhookUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
         body: JSON.stringify({
-          body: inputMessage,
+          body: currentMessage,
           from: 'web-test@example.com',
           fromMe: false
         })
       });
 
+      console.log('📥 Response status:', response.status);
+      console.log('📥 Response headers:', response.headers);
+
       let botResponse = '';
+      
       if (response.ok) {
-        const data = await response.json();
-        botResponse = data.message || 'Command processed successfully!';
+        try {
+          const data = await response.json();
+          console.log('📥 Response data:', data);
+          
+          // Try different possible response structures
+          botResponse = data.message || 
+                       data.text || 
+                       data.response || 
+                       data.body ||
+                       JSON.stringify(data) ||
+                       'Command processed successfully!';
+                       
+        } catch (parseError) {
+          console.error('❌ JSON parse error:', parseError);
+          const textResponse = await response.text();
+          console.log('📥 Raw response:', textResponse);
+          botResponse = textResponse || 'Command processed successfully!';
+        }
       } else {
-        botResponse = 'Sorry, there was an error processing your request. Please check your webhook URL.';
+        const errorText = await response.text();
+        console.error('❌ HTTP Error:', response.status, errorText);
+        botResponse = `❌ Error ${response.status}: ${errorText || 'Please check your webhook URL and n8n workflow.'}`;
       }
 
       // Add bot response
@@ -69,15 +96,24 @@ export default function SimpleChatInterface() {
       };
       
       setMessages(prev => [...prev, botMessage]);
+      
     } catch (error) {
-      console.error('Error:', error);
-      const errorMessage: Message = {
+      console.error('❌ Network error:', error);
+      
+      let errorMessage = '❌ Connection Error: ';
+      if (error instanceof TypeError) {
+        errorMessage += 'Network error - check if n8n is accessible and CORS is configured.';
+      } else {
+        errorMessage += error.message || 'Unknown error occurred.';
+      }
+      
+      const errorMsg: Message = {
         id: (Date.now() + 1).toString(),
-        text: '❌ Error: Could not connect to chatbot. Please check your webhook URL configuration.',
+        text: errorMessage,
         sender: 'bot',
         timestamp: new Date()
       };
-      setMessages(prev => [...prev, errorMessage]);
+      setMessages(prev => [...prev, errorMsg]);
     } finally {
       setIsLoading(false);
     }
@@ -87,6 +123,45 @@ export default function SimpleChatInterface() {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
+    }
+  };
+
+  const testConnection = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          body: '#todo help',
+          from: 'connection-test@example.com',
+          fromMe: false
+        })
+      });
+      
+      if (response.ok) {
+        const testMessage: Message = {
+          id: Date.now().toString(),
+          text: '✅ Connection test successful! Webhook is working.',
+          sender: 'bot',
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, testMessage]);
+      } else {
+        throw new Error(`HTTP ${response.status}`);
+      }
+    } catch (error) {
+      const errorMessage: Message = {
+        id: Date.now().toString(),
+        text: '❌ Connection test failed. Check webhook URL and n8n status.',
+        sender: 'bot',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -102,17 +177,29 @@ export default function SimpleChatInterface() {
       </div>
 
       {/* Webhook Configuration */}
-      <div className="p-4 bg-yellow-50 border-b border-yellow-200">
-        <label className="block text-sm font-semibold text-gray-900 mb-2">
-          n8n Webhook URL:
-        </label>
+      <div className="p-4 bg-green-50 border-b border-green-200">
+        <div className="flex items-center justify-between mb-2">
+          <label className="block text-sm font-semibold text-gray-900">
+            n8n Webhook URL:
+          </label>
+          <button
+            onClick={testConnection}
+            disabled={isLoading}
+            className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+          >
+            Test Connection
+          </button>
+        </div>
         <input
           type="text"
           value={webhookUrl}
           onChange={(e) => setWebhookUrl(e.target.value)}
-          placeholder="https://your-n8n-instance.com/webhook/your-webhook-id"
+          placeholder="https://n8n.harmonyservices.com.br/webhook/whatsapp-bot"
           className="w-full px-3 py-2 border border-gray-400 rounded-md text-sm text-gray-900 bg-white placeholder-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
         />
+        <div className="mt-1 text-xs text-green-700">
+          ✅ Production URL configured - Ready to test!
+        </div>
       </div>
 
       {/* Messages */}
@@ -155,7 +242,7 @@ export default function SimpleChatInterface() {
             <div className="bg-white text-gray-900 shadow-md max-w-xs px-4 py-3 rounded-lg border border-gray-200">
               <div className="flex items-center gap-2">
                 <Bot className="w-4 h-4 text-gray-700" />
-                <span className="text-xs font-medium text-gray-600">Bot is typing...</span>
+                <span className="text-xs font-medium text-gray-600">Bot is thinking...</span>
               </div>
               <div className="flex space-x-1 mt-2">
                 <div className="w-2 h-2 bg-gray-600 rounded-full animate-bounce"></div>
@@ -191,6 +278,10 @@ export default function SimpleChatInterface() {
         <div className="mt-3 text-xs text-gray-700 bg-gray-100 p-3 rounded-md">
           <strong className="text-gray-900">Available commands:</strong> 
           <span className="text-gray-800"> #todo help, #todo add [task], #todo list, #todo complete [number], #todo delete [number]</span>
+        </div>
+        
+        <div className="mt-2 text-xs text-blue-600">
+          💡 Tip: Click in Test Connection to verify n8n webhook is working
         </div>
       </div>
     </div>
