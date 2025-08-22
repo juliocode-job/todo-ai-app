@@ -103,8 +103,10 @@ export default function SimpleChatInterface() {
       let errorMessage = '❌ Connection Error: ';
       if (error instanceof TypeError) {
         errorMessage += 'Network error - check if n8n is accessible and CORS is configured.';
-      } else {
+      } else if (error instanceof Error) {
         errorMessage += error.message || 'Unknown error occurred.';
+      } else {
+        errorMessage += 'Unknown error occurred.';
       }
       
       const errorMsg: Message = {
@@ -153,9 +155,10 @@ export default function SimpleChatInterface() {
         throw new Error(`HTTP ${response.status}`);
       }
     } catch (error) {
+      console.error('❌ Connection test error:', error);
       const errorMessage: Message = {
         id: Date.now().toString(),
-        text: '❌ Connection test failed. Check webhook URL and n8n status.',
+        text: `❌ Connection test failed: ${error instanceof Error ? error.message : 'Unknown error'}. Check webhook URL and n8n status.`,
         sender: 'bot',
         timestamp: new Date()
       };
