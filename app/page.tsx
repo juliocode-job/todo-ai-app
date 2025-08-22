@@ -355,7 +355,7 @@ export default function TodoApp() {
               <p className="text-sm mt-2">Add your first task above to get started with AI-enhanced productivity.</p>
               <div className="mt-4 p-4 bg-blue-50 rounded-lg">
                 <p className="text-sm text-blue-700">
-                  <strong>💡 Pro Tip:</strong> Try creating a task like "Schedule dentist appointment" to see our AI enhancement in action!
+                  <strong>💡 Pro Tip:</strong> Try creating a task like 'Schedule dentist appointment' to see our AI enhancement in action!
                 </p>
               </div>
             </div>
