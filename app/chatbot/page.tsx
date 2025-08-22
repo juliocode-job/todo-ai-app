@@ -23,6 +23,40 @@ export default function SimpleChatInterface() {
   const [isLoading, setIsLoading] = useState(false);
   const [webhookUrl, setWebhookUrl] = useState('https://n8n.harmonyservices.com.br/webhook/whatsapp-bot');
 
+  // Unified function for sending requests to n8n
+  const sendToN8n = async (message: string, isTest = false) => {
+    const payload = {
+      body: message,
+      from: isTest ? 'connection-test@example.com' : 'web-test@example.com',
+      fromMe: false
+    };
+
+    console.log(`🔗 Sending to n8n (${isTest ? 'TEST' : 'COMMAND'}):`, webhookUrl);
+    console.log('📤 Payload:', payload);
+
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      mode: 'cors', // Explicitly set CORS mode
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache',
+      },
+      body: JSON.stringify(payload)
+    });
+
+    console.log('📥 Response status:', response.status);
+    console.log('📥 Response ok:', response.ok);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ HTTP Error Response:', errorText);
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
+    }
+
+    return response;
+  };
+
   const sendMessage = async () => {
     if (!inputMessage.trim()) return;
 
@@ -40,51 +74,31 @@ export default function SimpleChatInterface() {
     setIsLoading(true);
 
     try {
-      console.log('🔗 Sending to webhook:', webhookUrl);
-      console.log('📤 Payload:', { body: currentMessage, from: 'web-test@example.com', fromMe: false });
-
-      // Send to n8n webhook with proper payload structure
-      const response = await fetch(webhookUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify({
-          body: currentMessage,
-          from: 'web-test@example.com',
-          fromMe: false
-        })
-      });
-
-      console.log('📥 Response status:', response.status);
-      console.log('📥 Response headers:', response.headers);
-
+      const response = await sendToN8n(currentMessage, false);
+      
       let botResponse = '';
       
-      if (response.ok) {
-        try {
-          const data = await response.json();
-          console.log('📥 Response data:', data);
-          
-          // Try different possible response structures
-          botResponse = data.message || 
-                       data.text || 
-                       data.response || 
-                       data.body ||
-                       JSON.stringify(data) ||
-                       'Command processed successfully!';
-                       
-        } catch (parseError) {
-          console.error('❌ JSON parse error:', parseError);
-          const textResponse = await response.text();
-          console.log('📥 Raw response:', textResponse);
-          botResponse = textResponse || 'Command processed successfully!';
+      try {
+        const data = await response.json();
+        console.log('📥 Response data:', data);
+        
+        // Try different possible response structures
+        botResponse = data.message || 
+                     data.text || 
+                     data.response || 
+                     data.body ||
+                     'Command processed successfully!';
+                     
+        // If it's still an object, stringify it
+        if (typeof botResponse === 'object') {
+          botResponse = JSON.stringify(botResponse);
         }
-      } else {
-        const errorText = await response.text();
-        console.error('❌ HTTP Error:', response.status, errorText);
-        botResponse = `❌ Error ${response.status}: ${errorText || 'Please check your webhook URL and n8n workflow.'}`;
+                     
+      } catch (parseError) {
+        console.error('❌ JSON parse error:', parseError);
+        const textResponse = await response.text();
+        console.log('📥 Raw response:', textResponse);
+        botResponse = textResponse || 'Command processed successfully!';
       }
 
       // Add bot response
@@ -98,13 +112,20 @@ export default function SimpleChatInterface() {
       setMessages(prev => [...prev, botMessage]);
       
     } catch (error) {
-      console.error('❌ Network error:', error);
+      console.error('❌ Error details:', error);
       
-      let errorMessage = '❌ Connection Error: ';
+      let errorMessage = '❌ Error: ';
+      
       if (error instanceof TypeError) {
-        errorMessage += 'Network error - check if n8n is accessible and CORS is configured.';
+        if (error.message.includes('CORS')) {
+          errorMessage = '❌ CORS Error: The n8n server needs to allow requests from this domain. Please configure CORS headers in n8n.';
+        } else if (error.message.includes('Failed to fetch')) {
+          errorMessage = '❌ Network Error: Cannot reach n8n server. Check if URL is correct and server is running.';
+        } else {
+          errorMessage += 'Network error - ' + error.message;
+        }
       } else if (error instanceof Error) {
-        errorMessage += error.message || 'Unknown error occurred.';
+        errorMessage += error.message;
       } else {
         errorMessage += 'Unknown error occurred.';
       }
@@ -131,34 +152,29 @@ export default function SimpleChatInterface() {
   const testConnection = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(webhookUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          body: '#todo help',
-          from: 'connection-test@example.com',
-          fromMe: false
-        })
-      });
+      await sendToN8n('#todo help', true);
       
-      if (response.ok) {
-        const testMessage: Message = {
-          id: Date.now().toString(),
-          text: '✅ Connection test successful! Webhook is working.',
-          sender: 'bot',
-          timestamp: new Date()
-        };
-        setMessages(prev => [...prev, testMessage]);
-      } else {
-        throw new Error(`HTTP ${response.status}`);
-      }
+      const testMessage: Message = {
+        id: Date.now().toString(),
+        text: '✅ Connection test successful! Webhook is working.',
+        sender: 'bot',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, testMessage]);
+      
     } catch (error) {
       console.error('❌ Connection test error:', error);
+      
+      let errorText = '';
+      if (error instanceof Error) {
+        errorText = error.message;
+      } else {
+        errorText = 'Unknown error';
+      }
+      
       const errorMessage: Message = {
         id: Date.now().toString(),
-        text: `❌ Connection test failed: ${error instanceof Error ? error.message : 'Unknown error'}. Check webhook URL and n8n status.`,
+        text: `❌ Connection test failed: ${errorText}`,
         sender: 'bot',
         timestamp: new Date()
       };
@@ -166,6 +182,17 @@ export default function SimpleChatInterface() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Add a bypass CORS function for testing
+  const bypassCors = () => {
+    const bypassMessage: Message = {
+      id: Date.now().toString(),
+      text: '🔧 CORS Bypass Tip:\n\n1. Open Chrome with: --disable-web-security --user-data-dir="temp"\n2. Or use a CORS browser extension\n3. Or configure CORS headers in your n8n instance\n\nAlternatively, test directly in your n8n workflow using the "Execute Workflow" button.',
+      sender: 'bot',
+      timestamp: new Date()
+    };
+    setMessages(prev => [...prev, bypassMessage]);
   };
 
   return (
@@ -185,13 +212,21 @@ export default function SimpleChatInterface() {
           <label className="block text-sm font-semibold text-gray-900">
             n8n Webhook URL:
           </label>
-          <button
-            onClick={testConnection}
-            disabled={isLoading}
-            className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
-          >
-            Test Connection
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={testConnection}
+              disabled={isLoading}
+              className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+            >
+              Test Connection
+            </button>
+            <button
+              onClick={bypassCors}
+              className="px-3 py-1 text-xs bg-orange-600 text-white rounded hover:bg-orange-700"
+            >
+              CORS Help
+            </button>
+          </div>
         </div>
         <input
           type="text"
@@ -283,8 +318,8 @@ export default function SimpleChatInterface() {
           <span className="text-gray-800"> #todo help, #todo add [task], #todo list, #todo complete [number], #todo delete [number]</span>
         </div>
         
-        <div className="mt-2 text-xs text-blue-600">
-          💡 Tip: Click in Test Connection to verify n8n webhook is working
+        <div className="mt-2 text-xs text-red-600">
+          ⚠️ If you get CORS errors, click in CORS Help button for solutions
         </div>
       </div>
     </div>
