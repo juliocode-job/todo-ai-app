@@ -1,219 +1,137 @@
+// app/api/whatsapp/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
-import { enhanceTaskWithAI } from '@/lib/ai-service';
 
-// Store user sessions
-const sessions = new Map<string, { 
-  state: string; 
-  identifier?: string; 
-  todoTitle?: string;
-  todos?: any[];
-}>();
+// Type definitions
+interface WebhookData {
+  from: string;
+  to: string;
+  body: string;
+  id: string;
+  fromMe?: boolean;
+}
 
-// Send message via Ultramsg
-async function sendWhatsAppMessage(to: string, message: string) {
+interface TodoStep {
+  step: number;
+  description: string;
+}
+
+// UltraMsg credentials (from your screenshot)
+const INSTANCE_ID = '140141';
+const TOKEN = 'fiu6150vd9eqc5nb';
+
+// Helper function to call OpenAI
+async function enhanceWithAI(task: string): Promise<string> {
   try {
-    const response = await fetch('https://api.ultramsg.com/instance140141/messages/chat', {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      return createBasicEnhancement(task);
+    }
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: 'gpt-3.5-turbo',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a todo assistant. Given a task, provide 3-5 actionable steps. Be concise.'
+          },
+          {
+            role: 'user',
+            content: `Break down this task into steps: "${task}"`
+          }
+        ],
+        max_tokens: 300,
+        temperature: 0.7
+      })
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      return data.choices[0].message.content;
+    }
+  } catch (error) {
+    console.error('OpenAI error:', error);
+  }
+
+  return createBasicEnhancement(task);
+}
+
+// Fallback enhancement
+function createBasicEnhancement(task: string): string {
+  return `📝 Task: ${task}\n\nSteps:\n1. Plan the task\n2. Gather resources\n3. Execute\n4. Review completion`;
+}
+
+// Send message via UltraMsg
+async function sendMessage(to: string, message: string): Promise<void> {
+  try {
+    await fetch(`https://api.ultramsg.com/${INSTANCE_ID}/messages/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
       body: new URLSearchParams({
-        token: 'fiu6150vd9eqc5nb',
+        token: TOKEN,
         to: to,
         body: message
       })
     });
-    
-    const result = await response.json();
-    console.log('Message sent:', result);
-    return result;
   } catch (error) {
-    console.error('Failed to send WhatsApp message:', error);
+    console.error('Send error:', error);
   }
 }
 
-export async function POST(request: NextRequest) {
-  console.log('📱 WhatsApp webhook received');
-  
+// Main webhook handler
+export async function POST(req: NextRequest) {
   try {
-    const body = await request.json();
-    console.log('Webhook data:', body);
+    const data: WebhookData = await req.json();
     
-    // Ultramsg sends data in this format
-    const from = body.from || body.data?.from;
-    const text = body.body || body.data?.body || '';
-    const phoneNumber = from?.replace('@c.us', '').replace('+', '');
-    
-    // Skip if no message
-    if (!from || !text) {
+    // Skip if from bot
+    if (data.fromMe) {
       return NextResponse.json({ ok: true });
     }
     
-    // Skip your own number to avoid loops
-    if (phoneNumber === '5581995378398') {
-      return NextResponse.json({ ok: true });
-    }
+    const message = data.body?.trim() || '';
+    const from = data.from;
     
-    console.log(`Message from ${phoneNumber}: ${text}`);
-    
-    // Get or create session
-    let session = sessions.get(phoneNumber) || { state: 'NEW' };
-    
-    // Check for #todolist trigger
-    if (!text.toLowerCase().includes('#todolist') && session.state === 'NEW') {
-      return NextResponse.json({ ok: true });
-    }
-    
-    let responseText = '';
-    
-    // Handle conversation flow
-    if (session.state === 'NEW' && text.toLowerCase().includes('#todolist')) {
-      session.state = 'AWAITING_ID';
-      responseText = `👋 *Welcome to Todo Bot!*\n\nI'll help you manage your todos.\n\n*Please reply with your email or name to continue:*\n\nExample: john@email.com or John`;
+    // Check for #todo command
+    if (message.toLowerCase().startsWith('#todo ')) {
+      const task = message.substring(6).trim();
       
-    } else if (session.state === 'AWAITING_ID') {
-      session.identifier = text.trim();
-      session.state = 'IDENTIFIED';
-      responseText = `✅ *Welcome ${session.identifier}!*\n\n*Commands:*\n1️⃣ - List todos\n2️⃣ - Add new todo\n3️⃣ - Complete todo\n4️⃣ - Delete todo\n5️⃣ - Logout\n\n*Reply with a number (1-5):*`;
-      
-    } else if (session.state === 'IDENTIFIED') {
-      const command = text.trim();
-      
-      if (command === '1') {
-        // List todos
-        const { data } = await supabase
-          .from('todos')
-          .select('*')
-          .eq('user_identifier', session.identifier!)
-          .eq('is_completed', false)
-          .order('created_at', { ascending: false });
-          
-        if (!data || data.length === 0) {
-          responseText = '📋 *Your Todo List*\n\nNo pending todos! Great job! 🎉\n\nType 2 to add a new todo.';
-        } else {
-          responseText = '📋 *Your Todo List*\n\n';
-          data.forEach((todo, i) => {
-            responseText += `${i + 1}. ${todo.title}\n`;
-            if (todo.description) {
-              responseText += `   _${todo.description}_\n`;
-            }
-          });
-          responseText += '\n*Type a command number (1-5)*';
-          session.todos = data; // Store for complete/delete
-        }
+      if (task) {
+        // Get AI enhancement
+        const enhancement = await enhanceWithAI(task);
         
-      } else if (command === '2') {
-        session.state = 'ADDING_TITLE';
-        responseText = '➕ *Create New Todo*\n\nWhat\'s the todo title?';
+        // Format response
+        const response = `✅ *Todo Created!*\n\n📌 *${task}*\n\n${enhancement}\n\n_Send #todo [task] to create another_`;
         
-      } else if (command === '3') {
-        // Complete todo
-        if (!session.todos || session.todos.length === 0) {
-          responseText = '❌ No todos to complete. Type 1 to see your list.';
-        } else {
-          session.state = 'COMPLETING';
-          responseText = '✅ *Complete Todo*\n\nWhich number do you want to complete?\n\n';
-          session.todos.forEach((todo, i) => {
-            responseText += `${i + 1}. ${todo.title}\n`;
-          });
-        }
-        
-      } else if (command === '4') {
-        // Delete todo
-        if (!session.todos || session.todos.length === 0) {
-          responseText = '❌ No todos to delete. Type 1 to see your list.';
-        } else {
-          session.state = 'DELETING';
-          responseText = '🗑️ *Delete Todo*\n\nWhich number do you want to delete?\n\n';
-          session.todos.forEach((todo, i) => {
-            responseText += `${i + 1}. ${todo.title}\n`;
-          });
-        }
-        
-      } else if (command === '5') {
-        session = { state: 'NEW' };
-        sessions.delete(phoneNumber);
-        responseText = '👋 *Logged out successfully!*\n\nYour todos are saved.\n\nSend #todolist to start again.';
-        
+        // Send response
+        await sendMessage(from, response);
       } else {
-        responseText = '❓ *Invalid command*\n\nPlease reply with:\n1️⃣ List\n2️⃣ Add\n3️⃣ Complete\n4️⃣ Delete\n5️⃣ Logout';
+        await sendMessage(from, '❌ Please include a task after #todo');
       }
-      
-    } else if (session.state === 'ADDING_TITLE') {
-      session.todoTitle = text;
-      session.state = 'ADDING_DESC';
-      responseText = '📝 *Add a description?*\n\nType your description or reply "skip" to skip:';
-      
-    } else if (session.state === 'ADDING_DESC') {
-      const description = text.toLowerCase() === 'skip' ? '' : text;
-      
-      // Create todo with AI enhancement
-      const enhancement = await enhanceTaskWithAI(session.todoTitle!, description);
-      
-      const { data, error } = await supabase.from('todos').insert([{
-        user_identifier: session.identifier,
-        title: session.todoTitle,
-        description,
-        ai_enhanced_description: enhancement.enhancedDescription,
-        steps: enhancement.steps,
-        is_completed: false
-      }]).select().single();
-      
-      if (error) {
-        responseText = '❌ Failed to create todo. Please try again.';
-      } else {
-        responseText = `✅ *Todo Created Successfully!*\n\n📌 *${session.todoTitle}*\n\n🤖 *AI Enhancement:*\n${enhancement.enhancedDescription}\n\n📋 *Steps:*\n`;
-        enhancement.steps.forEach(step => {
-          responseText += `${step.step}. ${step.description}\n`;
-        });
-        responseText += '\n*Type a command (1-5)*';
-      }
-      
-      session.state = 'IDENTIFIED';
-      delete session.todoTitle;
-      
-    } else if (session.state === 'COMPLETING') {
-      const num = parseInt(text) - 1;
-      if (session.todos && session.todos[num]) {
-        const todo = session.todos[num];
-        await supabase
-          .from('todos')
-          .update({ is_completed: true })
-          .eq('id', todo.id);
-        
-        responseText = `✅ *Completed!*\n\n"${todo.title}" marked as done!\n\n*Type a command (1-5)*`;
-      } else {
-        responseText = '❌ Invalid number. Type 1 to see your list.';
-      }
-      session.state = 'IDENTIFIED';
-      
-    } else if (session.state === 'DELETING') {
-      const num = parseInt(text) - 1;
-      if (session.todos && session.todos[num]) {
-        const todo = session.todos[num];
-        await supabase
-          .from('todos')
-          .delete()
-          .eq('id', todo.id);
-        
-        responseText = `🗑️ *Deleted!*\n\n"${todo.title}" has been removed.\n\n*Type a command (1-5)*`;
-      } else {
-        responseText = '❌ Invalid number. Type 1 to see your list.';
-      }
-      session.state = 'IDENTIFIED';
-    }
-    
-    // Save session
-    sessions.set(phoneNumber, session);
-    
-    // Send response
-    if (responseText) {
-      await sendWhatsAppMessage(from, responseText);
+    } else if (message.toLowerCase() === 'help') {
+      const helpText = `👋 *AI Todo Bot*\n\nHow to use:\n*#todo* [your task]\n\nExample:\n_#todo prepare presentation_`;
+      await sendMessage(from, helpText);
     }
     
     return NextResponse.json({ success: true });
     
   } catch (error) {
-    console.error('WhatsApp webhook error:', error);
-    return NextResponse.json({ error: 'Failed' }, { status: 500 });
+    console.error('Error:', error);
+    return NextResponse.json({ error: 'Internal error' }, { status: 500 });
   }
+}
+
+// Health check endpoint
+export async function GET() {
+  return NextResponse.json({ 
+    status: 'ok',
+    instance: INSTANCE_ID,
+    webhook: 'ready'
+  });
 }
