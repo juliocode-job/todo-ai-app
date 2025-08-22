@@ -1,221 +1,948 @@
 {
-  "name": "Todo API Workflow",
+  "name": "My workflow 16",
   "nodes": [
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "todo-api",
+        "path": "whatsapp-bot",
         "responseMode": "responseNode",
-        "options": {
-          "cors": {
-            "allowedOrigins": "*"
-          }
-        }
+        "options": {}
       },
-      "id": "webhook_1",
-      "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
-      "typeVersion": 1,
-      "position": [250, 300],
-      "webhookId": "todo-api"
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "fe81470c-9418-401d-a246-b7a179bff419",
+      "name": "Webhook",
+      "webhookId": "99aedda4-f3e5-465f-8818-659797c6579b"
     },
     {
       "parameters": {
-        "mode": "expression",
-        "value1": "={{ $json.action }}",
+        "jsCode": "const data = $input.first().json;\n\n// Skip if message is from bot\nif (data.fromMe === true) {\n  return [];\n}\n\nconst from = data.from || '';\nconst message = (data.body || '').trim().toLowerCase();\nconst originalMessage = (data.body || '').trim();\nconst phoneNumber = from.replace('@c.us', '');\n\n// Parse command\nlet command = '';\nlet parameters = '';\n\nif (message.startsWith('#todo ')) {\n  const parts = originalMessage.substring(6).trim().split(' ');\n  command = parts[0]?.toLowerCase() || '';\n  parameters = parts.slice(1).join(' ');\n} else if (message === '#todo' || message === '#help') {\n  command = 'help';\n} else {\n  return [];\n}\n\n// Map commands\nconst commandMap = {\n  'list': 'list',\n  'add': 'add',\n  'complete': 'complete',\n  'done': 'complete',\n  'delete': 'delete',\n  'remove': 'delete',\n  'help': 'help'\n};\n\nreturn [{\n  json: {\n    from: from,\n    phoneNumber: phoneNumber,\n    command: commandMap[command] || command,\n    parameters: parameters,\n    originalMessage: originalMessage\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "04c4952b-62d1-4bd8-9e94-caaddbefc7ac",
+      "name": "Parse Message"
+    },
+    {
+      "parameters": {
         "rules": {
-          "rules": [
+          "values": [
             {
-              "value2": "list",
-              "output": 0
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "list",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "2fc58a3c-aa49-45e6-8eb5-e6fd345fe402"
+                  }
+                ],
+                "combinator": "and"
+              }
             },
             {
-              "value2": "create",
-              "output": 1
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "f2392c14-489a-4364-930c-e57ee1b5d5a9",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "add",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
             },
             {
-              "value2": "complete",
-              "output": 2
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "c5442515-61e7-4a19-99fa-ffd96c009e4c",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "complete",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
             },
             {
-              "value2": "delete",
-              "output": 3
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "0a0f7dec-70bd-43d9-b2e6-f3e30b015ebd",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "delete",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
             },
             {
-              "value2": "help",
-              "output": 4
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "fc6d3743-17ce-4a42-ae4a-283cf709bbe6",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "help",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
             }
           ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
         }
       },
-      "id": "switch_1",
-      "name": "Route by Action",
       "type": "n8n-nodes-base.switch",
-      "typeVersion": 1,
-      "position": [450, 300]
+      "typeVersion": 3.2,
+      "position": [
+        448,
+        -64
+      ],
+      "id": "48f44f90-4fc8-4af9-9275-b076cc6919aa",
+      "name": "Switch"
     },
     {
       "parameters": {
-        "url": "https://todo-ai-app-csv9-julio-s-projects-c52ab202.vercel.app/api/todos",
-        "method": "GET",
+        "url": "https://ryymnblppauxirpvhgla.supabase.co/rest/v1/todos",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
             {
               "name": "user_identifier",
-              "value": "={{ $json.user_identifier }}"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "http_list",
-      "name": "List Todos",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 3,
-      "position": [650, 100]
-    },
-    {
-      "parameters": {
-        "url": "https://todo-ai-app-csv9-julio-s-projects-c52ab202.vercel.app/api/todos",
-        "method": "POST",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "{\n  \"user_identifier\": \"{{ $json.user_identifier }}\",\n  \"title\": \"{{ $json.title }}\",\n  \"description\": \"{{ $json.description || '' }}\"\n}",
-        "options": {}
-      },
-      "id": "http_create",
-      "name": "Create Todo",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 3,
-      "position": [650, 250]
-    },
-    {
-      "parameters": {
-        "method": "GET",
-        "url": "=https://todo-ai-app-csv9-julio-s-projects-c52ab202.vercel.app/api/todos?user_identifier={{ $json.user_identifier }}",
-        "sendQuery": true,
-        "queryParameters": {
-          "parameters": []
-        },
-        "options": {}
-      },
-      "id": "http_list_complete",
-      "name": "List for Complete",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 3,
-      "position": [650, 400]
-    },
-    {
-      "parameters": {
-        "jsCode": "const todos = $input.first().json;\nconst todoNumber = $json.todo_number;\n\nif (!todos || todos.length === 0) {\n  return [{json: {error: 'No todos found'}}];\n}\n\nif (!todoNumber || todoNumber < 1 || todoNumber > todos.length) {\n  return [{json: {error: 'Invalid todo number'}}];\n}\n\nconst todoToComplete = todos[todoNumber - 1];\n\nreturn [{json: {\n  todo_id: todoToComplete.id,\n  title: todoToComplete.title\n}}];"
-      },
-      "id": "code_complete",
-      "name": "Get Todo ID",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 1,
-      "position": [850, 400]
-    },
-    {
-      "parameters": {
-        "url": "=https://todo-ai-app-csv9-julio-s-projects-c52ab202.vercel.app/api/todos/{{ $json.todo_id }}",
-        "method": "PATCH",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "{\n  \"is_completed\": true\n}",
-        "options": {}
-      },
-      "id": "http_complete",
-      "name": "Complete Todo",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 3,
-      "position": [1050, 400]
-    },
-    {
-      "parameters": {
-        "url": "=https://todo-ai-app-csv9-julio-s-projects-c52ab202.vercel.app/api/todos/{{ $json.todo_id }}",
-        "method": "DELETE",
-        "options": {}
-      },
-      "id": "http_delete",
-      "name": "Delete Todo",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 3,
-      "position": [650, 550]
-    },
-    {
-      "parameters": {
-        "values": {
-          "string": [
+              "value": "=eq.{{ $node[\"Parse Message\"].json.phoneNumber }}"
+            },
             {
-              "name": "response",
-              "value": "📝 *Available Commands*\n\n• *list* - View all todos\n• *create* - Add new todo\n• *complete [number]* - Mark todo as done\n• *delete [number]* - Remove todo\n• *help* - Show this message\n\nExample:\n{\"action\": \"create\", \"user_identifier\": \"john@email.com\", \"title\": \"Buy groceries\"}"
+              "name": "order",
+              "value": "created_at.desc"
             }
           ]
-        }
+        },
+        "options": {}
       },
-      "id": "set_help",
-      "name": "Help Message",
-      "type": "n8n-nodes-base.set",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        528,
+        -384
+      ],
+      "id": "d0dd41d9-866a-499a-b273-3fbee17db9c8",
+      "name": "Get Todos",
+      "credentials": {
+        "supabaseApi": {
+          "id": "0fdRrTzrFMaZ7zb6",
+          "name": "Supabase account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const todos = $input.first().json;\nconst phoneNumber = $node[\"Parse Message\"].json.phoneNumber;\n\nlet response = '';\n\nif (!todos || todos.length === 0) {\n  response = `📋 *Your Todo List*\\n\\nYou don't have any todos yet!\\n\\nUse *#todo add [task]* to create your first todo.`;\n} else {\n  response = `📋 *Your Todo List*\\n\\n`;\n  \n  todos.forEach((todo, index) => {\n    const status = todo.is_completed ? '✅' : '⬜';\n    const title = todo.is_completed ? `~${todo.title}~` : todo.title;\n    response += `${index + 1}. ${status} ${title}\\n`;\n    \n    if (todo.ai_enhanced_description && !todo.is_completed) {\n      response += `   💡 _${todo.ai_enhanced_description.substring(0, 50)}..._\\n`;\n    }\n    response += `\\n`;\n  });\n  \n  response += `\\n📝 *Commands:*\\n`;\n  response += `• *#todo add [task]* - Add new todo\\n`;\n  response += `• *#todo complete [number]* - Mark as done\\n`;\n  response += `• *#todo delete [number]* - Remove todo`;\n}\n\nreturn [{\n  json: {\n    to: $node[\"Parse Message\"].json.from,\n    message: response\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [650, 700]
+      "position": [
+        688,
+        -512
+      ],
+      "id": "91766659-c59d-427f-b04f-de4c69f9ee2f",
+      "name": "Format List"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.ultramsg.com/instance140141/messages/chat",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "token",
+              "value": "fiu6150vd9eqc5nb"
+            },
+            {
+              "name": "to",
+              "value": "={{ $json.to }}"
+            },
+            {
+              "name": "body",
+              "value": "={{ $json.message }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        864,
+        -592
+      ],
+      "id": "36bd1b5f-8ca0-4616-8b5c-74c57e07b0c3",
+      "name": "Send WhatsApp"
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}",
-        "responseHeaders": {
-          "entries": [
+        "responseBody": "{\n  \"success\": true,\n  \"message\": \"Message processed\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1072,
+        -704
+      ],
+      "id": "72bbc358-2a0a-4afa-80d5-6afeeb50a295",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "const parameters = $node[\"Parse Message\"].json.parameters;\nconst phoneNumber = $node[\"Parse Message\"].json.phoneNumber;\n\nif (!parameters || parameters.trim() === '') {\n  return [{\n    json: {\n      error: true,\n      to: $node[\"Parse Message\"].json.from,\n      message: '❌ Please provide a task description.\\n\\nExample: *#todo add Buy groceries*'\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    title: parameters,\n    user_identifier: phoneNumber,\n    from: $node[\"Parse Message\"].json.from\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        704,
+        -288
+      ],
+      "id": "4f5cfd8a-bfb9-4517-bf5e-4e5661d57047",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-3.5-turbo\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are a helpful assistant that enhances todo items. Provide a clear, actionable description (50-100 words) and 3-5 specific steps. Respond in JSON format with keys: enhancedDescription (string) and steps (array of {step: number, description: string}). Be concise and practical.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Enhance this task: {{ $json.title }}. Make it actionable and specific.\"\n    }\n  ],\n  \"temperature\": 0.7,\n  \"max_tokens\": 500\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        -368
+      ],
+      "id": "98344ba2-4669-4b66-890d-e841bb1020bd",
+      "name": "Enhance with OpenAI",
+      "retryOnFail": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "hzQgqXgoSX55J04j",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const todoData = $node[\"Prepare Todo Data\"].json;\nconst aiResponse = $input.first().json;\n\nlet enhancement = {\n  enhancedDescription: `Complete the task: ${todoData.title}`,\n  steps: [\n    { step: 1, description: `Plan and prepare for ${todoData.title}` },\n    { step: 2, description: `Execute the main task` },\n    { step: 3, description: `Review and confirm completion` }\n  ]\n};\n\n// Parse AI response if available\nif (aiResponse.choices && aiResponse.choices[0]) {\n  try {\n    const content = aiResponse.choices[0].message.content;\n    enhancement = JSON.parse(content);\n  } catch (error) {\n    console.log('Failed to parse AI response, using fallback');\n  }\n}\n\nreturn [{\n  json: {\n    user_identifier: todoData.user_identifier,\n    title: todoData.title,\n    description: '',\n    ai_enhanced_description: enhancement.enhancedDescription,\n    steps: enhancement.steps,\n    is_completed: false,\n    from: todoData.from\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1088,
+        -432
+      ],
+      "id": "35c85449-7d66-4a7c-a429-47436fc687f1",
+      "name": "Process Enhancement"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ryymnblppauxirpvhgla.supabase.co/rest/v1/todos",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"user_identifier\": \"{{ $json.user_identifier }}\",\n  \"title\": \"{{ $json.title }}\",\n  \"description\": \"{{ $json.description }}\",\n  \"ai_enhanced_description\": \"{{ $json.ai_enhanced_description }}\",\n  \"steps\": {{ JSON.stringify($json.steps) }},\n  \"is_completed\": false\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1312,
+        -480
+      ],
+      "id": "81b3a460-4090-4670-b701-5399eac13c9b",
+      "name": "Save Todo",
+      "credentials": {
+        "supabaseApi": {
+          "id": "0fdRrTzrFMaZ7zb6",
+          "name": "Supabase account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const savedTodo = $input.first().json;\nconst from = $node[\"Process Enhancement\"].json.from;\n\nconst message = `✅ *Todo Created!*\\n\\n📝 *${savedTodo.title}*\\n\\n💡 *AI Enhancement:*\\n${savedTodo.ai_enhanced_description}\\n\\n📋 *Steps to complete:*\\n${savedTodo.steps.map(s => `${s.step}. ${s.description}`).join('\\n')}\\n\\nType *#todo list* to see all your todos.`;\n\nreturn [{\n  json: {\n    to: from,\n    message: message\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        -656
+      ],
+      "id": "a2f950f8-195e-4118-abb6-151df6e9362e",
+      "name": "Format Created"
+    },
+    {
+      "parameters": {
+        "url": "https://ryymnblppauxirpvhgla.supabase.co/rest/v1/todos",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "user_identifier",
+              "value": "=eq.{{ $node[\"Parse Message\"].json.phoneNumber }}"
+            },
+            {
+              "name": "order",
+              "value": "created_at.desc"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        752,
+        -128
+      ],
+      "id": "6f68b8d7-19bb-4111-b82a-329eaf4aa325",
+      "name": "Get Todos for Complete",
+      "credentials": {
+        "supabaseApi": {
+          "id": "0fdRrTzrFMaZ7zb6",
+          "name": "Supabase account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const todos = $input.first().json;\nconst parameters = $node[\"Parse Message\"].json.parameters;\nconst from = $node[\"Parse Message\"].json.from;\n\nif (!todos || todos.length === 0) {\n  return [{\n    json: {\n      error: true,\n      to: from,\n      message: '📋 You have no todos to complete. Use *#todo add [task]* to create one.'\n    }\n  }];\n}\n\nconst todoNumber = parseInt(parameters);\n\nif (!todoNumber || isNaN(todoNumber) || todoNumber < 1 || todoNumber > todos.length) {\n  let message = '❌ Please provide a valid todo number.\\n\\n';\n  message += '📋 *Your active todos:*\\n';\n  todos.forEach((todo, index) => {\n    if (!todo.is_completed) {\n      message += `${index + 1}. ${todo.title}\\n`;\n    }\n  });\n  message += '\\nUse: *#todo complete [number]*';\n  \n  return [{\n    json: {\n      error: true,\n      to: from,\n      message: message\n    }\n  }];\n}\n\nconst todoToComplete = todos[todoNumber - 1];\n\nif (todoToComplete.is_completed) {\n  return [{\n    json: {\n      error: true,\n      to: from,\n      message: `ℹ️ This todo is already completed.\\n\\nUse *#todo list* to see your todos.`\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    todo_id: todoToComplete.id,\n    todo_title: todoToComplete.title,\n    from: from\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        928,
+        -176
+      ],
+      "id": "d69b0326-54a4-429d-bc14-f85b0bfbcd81",
+      "name": "Validate Complete"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://ryymnblppauxirpvhgla.supabase.co/rest/v1/todos",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
             {
               "name": "Content-Type",
               "value": "application/json"
             }
           ]
-        }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"is_completed\": true\n}",
+        "options": {}
       },
-      "id": "respond",
-      "name": "Send Response",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1,
-      "position": [1250, 300]
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1392,
+        -304
+      ],
+      "id": "ed5bb4d8-3f1b-4cbc-bd93-430d9dc093be",
+      "name": "Update Complete Status",
+      "credentials": {
+        "supabaseApi": {
+          "id": "0fdRrTzrFMaZ7zb6",
+          "name": "Supabase account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const todoTitle = $node[\"Validate Complete\"].json.todo_title;\nconst from = $node[\"Validate Complete\"].json.from;\n\nconst message = `✅ *Todo Completed!*\\n\\n🎉 Well done! You've completed:\\n*${todoTitle}*\\n\\nType *#todo list* to see your remaining todos.`;\n\nreturn [{\n  json: {\n    to: from,\n    message: message\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1616,
+        -384
+      ],
+      "id": "b552d74e-09b6-437f-8c47-12be2d96b620",
+      "name": "Format Complete Message"
+    },
+    {
+      "parameters": {
+        "url": "https://ryymnblppauxirpvhgla.supabase.co/rest/v1/todos",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "user_identifier",
+              "value": "=eq.{{ $node[\"Parse Message\"].json.phoneNumber }}"
+            },
+            {
+              "name": "order",
+              "value": "created_at.desc"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        912,
+        -16
+      ],
+      "id": "a10d8630-accf-4e86-99c8-12954ef9713b",
+      "name": "Get Todos for Delete",
+      "credentials": {
+        "supabaseApi": {
+          "id": "0fdRrTzrFMaZ7zb6",
+          "name": "Supabase account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const todos = $input.first().json;\nconst parameters = $node[\"Parse Message\"].json.parameters;\nconst from = $node[\"Parse Message\"].json.from;\n\nif (!todos || todos.length === 0) {\n  return [{\n    json: {\n      error: true,\n      to: from,\n      message: '📋 You have no todos to delete.'\n    }\n  }];\n}\n\nconst todoNumber = parseInt(parameters);\n\nif (!todoNumber || isNaN(todoNumber) || todoNumber < 1 || todoNumber > todos.length) {\n  let message = '❌ Please provide a valid todo number.\\n\\n';\n  message += '📋 *Your todos:*\\n';\n  todos.forEach((todo, index) => {\n    message += `${index + 1}. ${todo.title}\\n`;\n  });\n  message += '\\nUse: *#todo delete [number]*';\n  \n  return [{\n    json: {\n      error: true,\n      to: from,\n      message: message\n    }\n  }];\n}\n\nconst todoToDelete = todos[todoNumber - 1];\n\nreturn [{\n  json: {\n    todo_id: todoToDelete.id,\n    todo_title: todoToDelete.title,\n    from: from\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1104,
+        -32
+      ],
+      "id": "5ad736dd-ec44-40a4-a9a1-d0edca3260d8",
+      "name": "Validate Delete"
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://ryymnblppauxirpvhgla.supabase.co/rest/v1/todos?id=eq.{{ $json.todo_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1408,
+        -144
+      ],
+      "id": "fc992054-ef5d-4f04-8650-df1943c3d84d",
+      "name": "Delete Todo",
+      "credentials": {
+        "supabaseApi": {
+          "id": "0fdRrTzrFMaZ7zb6",
+          "name": "Supabase account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const todoTitle = $node[\"Validate Delete\"].json.todo_title;\nconst from = $node[\"Validate Delete\"].json.from;\n\nconst message = `🗑️ *Todo Deleted!*\\n\\n*${todoTitle}* has been removed from your list.\\n\\nType *#todo list* to see your remaining todos.`;\n\nreturn [{\n  json: {\n    to: from,\n    message: message\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1648,
+        -192
+      ],
+      "id": "54f7a039-561b-4c21-9fa7-59fa9bbcf428",
+      "name": "Format Delete Message"
+    },
+    {
+      "parameters": {
+        "jsCode": "const from = $node[\"Parse Message\"].json.from;\n\nconst helpMessage = `🤖 *AI Todo Bot - Help*\\n\\n*Available Commands:*\\n\\n📝 *#todo add [task]*\\nCreate a new todo with AI enhancement\\n_Example: #todo add Buy groceries_\\n\\n📋 *#todo list*\\nShow all your todos\\n\\n✅ *#todo complete [number]*\\nMark a todo as completed\\n_Example: #todo complete 1_\\n\\n🗑️ *#todo delete [number]*\\nRemove a todo from your list\\n_Example: #todo delete 2_\\n\\n❓ *#todo help* or *#help*\\nShow this help message\\n\\n💡 *Tips:*\\n• Your todos are enhanced with AI to provide actionable steps\\n• Todos are saved and synced across all platforms\\n• Use your phone number to access the same todos on the web\\n\\n🌐 *Web Access:*\\nhttps://todo-ai-app-csv9.vercel.app\\n\\nPowered by OpenAI 🚀`;\n\nreturn [{\n  json: {\n    to: from,\n    message: helpMessage\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1072,
+        160
+      ],
+      "id": "e26cf539-4f1a-4be0-850f-510d45f96346",
+      "name": "Format Help"
+    },
+    {
+      "parameters": {
+        "jsCode": "const from = $node[\"Parse Message\"].json.from;\n\nconst helpMessage = `🤖 *AI Todo Bot - Help*\\n\\n*Available Commands:*\\n\\n📝 *#todo add [task]*\\nCreate a new todo with AI enhancement\\n_Example: #todo add Buy groceries_\\n\\n📋 *#todo list*\\nShow all your todos\\n\\n✅ *#todo complete [number]*\\nMark a todo as completed\\n_Example: #todo complete 1_\\n\\n🗑️ *#todo delete [number]*\\nRemove a todo from your list\\n_Example: #todo delete 2_\\n\\n❓ *#todo help* or *#help*\\nShow this help message\\n\\n💡 *Tips:*\\n• Your todos are enhanced with AI to provide actionable steps\\n• Todos are saved and synced across all platforms\\n• Use your phone number to access the same todos on the web\\n\\n🌐 *Web Access:*\\nhttps://todo-ai-app-csv9.vercel.app\\n\\nPowered by OpenAI 🚀`;\n\nreturn [{\n  json: {\n    to: from,\n    message: helpMessage\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        752,
+        224
+      ],
+      "id": "dbd9c133-38fb-49b4-87ec-c2af35a8489b",
+      "name": "Format Help1"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.error }}",
+                    "rightValue": "true",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "010b5144-4a6e-49ed-a876-96042d9df008"
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1120,
+        -256
+      ],
+      "id": "c7a17d59-d3fc-44af-9f1c-380ab5a667d3",
+      "name": "Check Error"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.error }}",
+                    "rightValue": "true",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "010b5144-4a6e-49ed-a876-96042d9df008"
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1296,
+        16
+      ],
+      "id": "78ea8565-1557-4060-9d12-75664c80365b",
+      "name": "Check Error1"
     }
   ],
+  "pinData": {},
   "connections": {
     "Webhook": {
-      "main": [[{"node": "Route by Action"}]]
-    },
-    "Route by Action": {
       "main": [
-        [{"node": "List Todos"}],
-        [{"node": "Create Todo"}],
-        [{"node": "List for Complete"}],
-        [{"node": "Delete Todo"}],
-        [{"node": "Help Message"}]
+        [
+          {
+            "node": "Parse Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
-    "List Todos": {
-      "main": [[{"node": "Send Response"}]]
+    "Parse Message": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
-    "Create Todo": {
-      "main": [[{"node": "Send Response"}]]
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Get Todos",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Todos for Complete",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Todos for Delete",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Help",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Help1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
-    "List for Complete": {
-      "main": [[{"node": "Get Todo ID"}]]
+    "Get Todos": {
+      "main": [
+        [
+          {
+            "node": "Format List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
-    "Get Todo ID": {
-      "main": [[{"node": "Complete Todo"}]]
+    "Format List": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
-    "Complete Todo": {
-      "main": [[{"node": "Send Response"}]]
+    "Send WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Enhance with OpenAI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enhance with OpenAI": {
+      "main": [
+        [
+          {
+            "node": "Process Enhancement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Enhancement": {
+      "main": [
+        [
+          {
+            "node": "Save Todo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Todo": {
+      "main": [
+        [
+          {
+            "node": "Format Created",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Created": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Todos for Complete": {
+      "main": [
+        [
+          {
+            "node": "Validate Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Complete": {
+      "main": [
+        [
+          {
+            "node": "Check Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Complete Status": {
+      "main": [
+        [
+          {
+            "node": "Format Complete Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Complete Message": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Todos for Delete": {
+      "main": [
+        [
+          {
+            "node": "Validate Delete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Delete": {
+      "main": [
+        [
+          {
+            "node": "Delete Todo",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check Error1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Delete Todo": {
-      "main": [[{"node": "Send Response"}]]
+      "main": [
+        [
+          {
+            "node": "Format Delete Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
-    "Help Message": {
-      "main": [[{"node": "Send Response"}]]
+    "Format Delete Message": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Help": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Help1": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Error": {
+      "main": [
+        [
+          {
+            "node": "Update Complete Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
-  "active": false,
-  "settings": {},
-  "id": "todo-api-workflow"
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "41b4b913-679e-47ed-87bf-e8d8ee137da8",
+  "meta": {
+    "instanceId": "76a5d5938757d293285b845e6d1874d4baf643cc6d0f255115de5eed2657b77f"
+  },
+  "id": "VCpeDyFT3sBJYA6U",
+  "tags": []
 }
