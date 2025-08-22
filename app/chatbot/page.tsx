@@ -76,36 +76,49 @@ export default function SimpleChatInterface() {
     try {
       const response = await sendToN8n(currentMessage, false);
       
-      let botResponse = '';
-      
       // Read the response body only once
       const responseText = await response.text();
+      console.log('📥 Raw response length:', responseText.length);
       console.log('📥 Raw response:', responseText);
+      
+      let botResponse = '';
       
       if (responseText) {
         try {
           // Try to parse as JSON first
           const data = JSON.parse(responseText);
           console.log('📥 Parsed JSON data:', data);
+          console.log('📥 Data keys:', Object.keys(data));
           
           // Try different possible response structures
           botResponse = data.message || 
                        data.text || 
                        data.response || 
                        data.body ||
-                       responseText;
+                       data.result ||
+                       data.output ||
+                       data.reply ||
+                       data.answer ||
+                       (typeof data === 'string' ? data : null);
                        
-          // If it's still an object, stringify it
-          if (typeof botResponse === 'object') {
-            botResponse = JSON.stringify(botResponse);
+          // If it's still an object, show it formatted
+          if (typeof botResponse === 'object' && botResponse !== null) {
+            botResponse = `📊 Response Data:\n${JSON.stringify(botResponse, null, 2)}`;
+          } else if (!botResponse && typeof data === 'object') {
+            botResponse = `🔍 Debug - Full Response:\n${JSON.stringify(data, null, 2)}`;
           }
                      
         } catch (parseError) {
           console.log('📝 Using raw text response (not JSON)');
-          botResponse = responseText;
+          botResponse = `📝 Raw Response:\n${responseText}`;
         }
       } else {
-        botResponse = 'Command processed successfully!';
+        botResponse = '⚠️ Empty response from n8n webhook. Check your workflow response configuration.';
+      }
+      
+      // If we still don't have a meaningful response
+      if (!botResponse || botResponse === 'Command processed successfully!') {
+        botResponse = `✅ Command sent to n8n successfully!\n\n🔍 Debug Info:\n- Response length: ${responseText.length} chars\n- Raw response: "${responseText}"\n\n💡 Your n8n workflow might need a "Respond to Webhook" node to send back proper responses.`;
       }
 
       // Add bot response
@@ -191,6 +204,37 @@ export default function SimpleChatInterface() {
     }
   };
 
+  // Add n8n configuration help
+  const showN8nHelp = () => {
+    const helpMessage: Message = {
+      id: Date.now().toString(),
+      text: `🔧 n8n Workflow Configuration Help
+
+❌ Problem: Commands are processed but no response comes back
+
+✅ Solution: Add "Respond to Webhook" node to your workflow
+
+📋 Steps:
+1. Open your n8n workflow
+2. Add "Respond to Webhook" node at the END
+3. Connect it after your last processing node
+4. Configure it to return the bot response
+
+📤 Example Response Data:
+{
+  "message": "✅ Todo created successfully!",
+  "success": true
+}
+
+🔗 The response will be sent back to this chat interface
+
+💡 Without this node, n8n processes but doesn't respond!`,
+      sender: 'bot',
+      timestamp: new Date()
+    };
+    setMessages(prev => [...prev, helpMessage]);
+  };
+
   // Add a bypass CORS function for testing
   const bypassCors = () => {
     const bypassMessage: Message = {
@@ -226,6 +270,12 @@ export default function SimpleChatInterface() {
               className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
             >
               Test Connection
+            </button>
+            <button
+              onClick={showN8nHelp}
+              className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              n8n Help
             </button>
             <button
               onClick={bypassCors}
@@ -325,8 +375,8 @@ export default function SimpleChatInterface() {
           <span className="text-gray-800"> #todo help, #todo add [task], #todo list, #todo complete [number], #todo delete [number]</span>
         </div>
         
-        <div className="mt-2 text-xs text-red-600">
-          ⚠️ If you get CORS errors, click CORS Help button for solutions
+        <div className="mt-2 text-xs text-blue-600">
+          💡 Tip: If you only see Command processed successfully, click on n8n Help button
         </div>
       </div>
     </div>
